@@ -118,7 +118,7 @@
                                                         </td>
                                                         <td>{$supplier.total_lots}</td>
                                                         <td>
-                                                            <button class="btn btn-danger btn-xs delete-supplier" data-id="{$supplier.id_lot_supplier}">
+                                                            <button class="btn btn-danger btn-xs delete-supplier" data-id="{$supplier.id_supplier}">
                                                                 <i class="icon-trash"></i>
                                                             </button>
                                                         </td>
