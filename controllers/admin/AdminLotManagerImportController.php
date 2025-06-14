@@ -6,6 +6,7 @@ require_once _PS_MODULE_DIR_ . 'lotmanager/classes/LotManagerLot.php';
 require_once _PS_MODULE_DIR_ . 'lotmanager/classes/LotManagerDefect.php';
 require_once _PS_MODULE_DIR_ . 'lotmanager/classes/LotManagerSupplier.php';
 require_once _PS_MODULE_DIR_ . 'lotmanager/classes/LotManagerProduct.php';
+
 class AdminLotManagerImportController extends ModuleAdminController
 {
   public function __construct()
@@ -35,12 +36,10 @@ class AdminLotManagerImportController extends ModuleAdminController
       return;
     }
 
-    // Traitement du mapping si soumis
     if (Tools::isSubmit('submitMapping')) {
       $this->processMapping($lot);
     }
 
-    // Détection des colonnes du fichier
     $fileAnalysis = $this->analyzeUploadedFile($lot);
 
     $this->context->smarty->assign([
@@ -93,30 +92,39 @@ class AdminLotManagerImportController extends ModuleAdminController
       'total_rows' => 0
     ];
 
-    if (($handle = fopen($filePath, "r")) !== FALSE) {
+    if (($handle = fopen($filePath, "r")) !== false) {
+      // Tenter de détecter le délimiteur
+      $firstLine = fgets($handle);
+      rewind($handle);
+      $delimiter = ',';
+      if (strpos($firstLine, ';') !== false) {
+        $delimiter = ';';
+      }
+
       // Lire l'en-tête
-      $header = fgetcsv($handle, 1000, ",");
+      $header = fgetcsv($handle, 0, $delimiter);
       if ($header) {
-        $analysis['columns'] = array_map('trim', $header);
+        // Nettoyer les caractères invisibles des en-têtes (comme le BOM UTF-8)
+        $header = array_map(function ($h) {
+          return preg_replace('/^\x{EF}\x{BB}\x{BF}/', '', trim($h));
+        }, $header);
+
+        $analysis['columns'] = $header;
 
         // Lire quelques lignes d'exemple
         $sampleCount = 0;
-        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE && $sampleCount < 5) {
+        while (($data = fgetcsv($handle, 0, $delimiter)) !== false && $sampleCount < 5) {
           if (count($data) === count($header)) {
-            $rowData = [];
-            foreach ($header as $index => $columnName) {
-              $rowData[$columnName] = isset($data[$index]) ? trim($data[$index]) : '';
-            }
-            $analysis['sample_data'][] = $rowData;
+            $analysis['sample_data'][] = array_combine($header, $data);
             $sampleCount++;
           }
         }
 
-        // Compter le nombre total de lignes
-        while (fgetcsv($handle, 1000, ",") !== FALSE) {
+        // Compter le reste des lignes
+        while (fgetcsv($handle, 0, $delimiter) !== false) {
           $analysis['total_rows']++;
         }
-        $analysis['total_rows'] += $sampleCount; // Ajouter les lignes d'exemple
+        $analysis['total_rows'] += $sampleCount;
       }
       fclose($handle);
     }
@@ -126,59 +134,58 @@ class AdminLotManagerImportController extends ModuleAdminController
 
   private function analyzeExcelFile($filePath)
   {
-    // Simulation d'analyse Excel basée sur votre fichier
-    // Dans une vraie implémentation, utiliser PhpSpreadsheet
-    return [
-      'success' => true,
-      'file_type' => 'Excel',
-      'columns' => [
-        'Désignation',
-        'Quantité',
-        'Prix unitaire',
-        'Référence',
-        'État',
-        'Couleur',
-        'Stockage',
-        'Marque',
-        'Modèle'
-      ],
-      'sample_data' => [
-        [
-          'Désignation' => 'iPhone 11 64GB Black Grade B',
-          'Quantité' => '1',
-          'Prix unitaire' => '450.00',
-          'Référence' => 'REF-IPHONE11-001',
-          'État' => 'Grade B',
-          'Couleur' => 'Noir',
-          'Stockage' => '64GB',
-          'Marque' => 'Apple',
-          'Modèle' => 'iPhone 11'
-        ],
-        [
-          'Désignation' => 'Samsung Galaxy S20 128GB Blue',
-          'Quantité' => '2',
-          'Prix unitaire' => '380.00',
-          'Référence' => 'REF-SAMSUNG-002',
-          'État' => 'Grade A',
-          'Couleur' => 'Bleu',
-          'Stockage' => '128GB',
-          'Marque' => 'Samsung',
-          'Modèle' => 'Galaxy S20'
-        ],
-        [
-          'Désignation' => 'iPad Air 64GB WiFi Silver',
-          'Quantité' => '1',
-          'Prix unitaire' => '320.00',
-          'Référence' => 'REF-IPAD-003',
-          'État' => 'Grade B',
-          'Couleur' => 'Argent',
-          'Stockage' => '64GB',
-          'Marque' => 'Apple',
-          'Modèle' => 'iPad Air'
-        ]
-      ],
-      'total_rows' => 45
-    ];
+    try {
+      $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
+      $worksheet = $spreadsheet->getActiveSheet();
+      $header = [];
+      $sample_data = [];
+      $total_rows = $worksheet->getHighestRow();
+
+      // Lire l'en-tête (première ligne)
+      foreach ($worksheet->getRowIterator(1, 1) as $row) {
+        $cellIterator = $row->getCellIterator();
+        $cellIterator->setIterateOnlyExistingCells(false);
+        foreach ($cellIterator as $cell) {
+          $header[] = trim($cell->getValue());
+        }
+      }
+
+      // Lire jusqu'à 5 lignes d'exemple (lignes 2 à 6)
+      for ($rowIndex = 2; $rowIndex <= min(6, $total_rows); $rowIndex++) {
+        $rowData = [];
+        $colIndex = 0;
+        $rowIterator = $worksheet->getRowIterator($rowIndex, 1);
+        if ($rowIterator->valid()) {
+          $row = $rowIterator->current();
+          $cellIterator = $row->getCellIterator();
+          $cellIterator->setIterateOnlyExistingCells(false);
+          foreach ($cellIterator as $cell) {
+            if (isset($header[$colIndex])) {
+              $rowData[$header[$colIndex]] = trim($cell->getValue());
+            }
+            $colIndex++;
+          }
+        }
+        if (!empty(array_filter($rowData))) { // N'ajoute pas de lignes vides
+          $sample_data[] = $rowData;
+        }
+      }
+
+      return [
+        'success' => true,
+        'file_type' => 'Excel',
+        'columns' => $header,
+        'sample_data' => $sample_data,
+        'total_rows' => $total_rows > 0 ? $total_rows - 1 : 0
+      ];
+    } catch (\Exception $e) {
+      return [
+        'success' => false,
+        'message' => 'Erreur lors de l\'analyse du fichier Excel: ' . $e->getMessage(),
+        'columns' => [],
+        'sample_data' => []
+      ];
+    }
   }
 
   private function getMappingFields()
@@ -188,13 +195,13 @@ class AdminLotManagerImportController extends ModuleAdminController
         'label' => $this->l('Nom du produit'),
         'required' => true,
         'description' => $this->l('Nom ou désignation du produit'),
-        'auto_patterns' => ['designation', 'nom', 'produit', 'libelle', 'name', 'product']
+        'auto_patterns' => ['designation', 'nom', 'produit', 'libelle', 'name', 'product', 'description']
       ],
       'serial_number' => [
         'label' => $this->l('Numéro de série / IMEI'),
         'required' => false,
         'description' => $this->l('Identifiant unique du produit'),
-        'auto_patterns' => ['serie', 'serial', 'imei', 'sn', 'numero']
+        'auto_patterns' => ['serie', 'serial', 'imei', 'sn', 'numero', 'id']
       ],
       'quantity' => [
         'label' => $this->l('Quantité'),
@@ -206,7 +213,7 @@ class AdminLotManagerImportController extends ModuleAdminController
         'label' => $this->l('Prix unitaire HT'),
         'required' => true,
         'description' => $this->l('Coût d\'achat par unité'),
-        'auto_patterns' => ['prix', 'price', 'cout', 'cost', 'unitaire']
+        'auto_patterns' => ['prix', 'price', 'cout', 'cost', 'unitaire', 'bid price per unit']
       ],
       'supplier_reference' => [
         'label' => $this->l('Référence fournisseur'),
@@ -266,7 +273,6 @@ class AdminLotManagerImportController extends ModuleAdminController
       $mapping[$fieldKey] = Tools::getValue('mapping_' . $fieldKey);
     }
 
-    // Validation du mapping
     $requiredFields = ['product_name', 'quantity', 'unit_price'];
     foreach ($requiredFields as $field) {
       if (empty($mapping[$field])) {
@@ -275,12 +281,10 @@ class AdminLotManagerImportController extends ModuleAdminController
       }
     }
 
-    // Sauvegarde du profil si demandé
     if (Tools::getValue('save_profile') && Tools::getValue('profile_name')) {
       $this->saveMappingProfile($mapping, Tools::getValue('profile_name'), $lot->id_supplier);
     }
 
-    // Import des produits
     $importResult = $this->importProductsWithMapping($lot, $mapping);
 
     if ($importResult['success']) {
@@ -290,7 +294,6 @@ class AdminLotManagerImportController extends ModuleAdminController
         $importResult['total_rows']
       );
 
-      // Redirection vers la qualification
       Tools::redirectAdmin(
         $this->context->link->getAdminLink('AdminLotManagerProducts') .
         '&id_lot=' . $lot->id . '&qualification=1'
@@ -305,7 +308,7 @@ class AdminLotManagerImportController extends ModuleAdminController
     return Db::getInstance()->insert('lot_manager_mapping_profiles', [
       'name' => pSQL($profileName),
       'id_supplier' => (int) $idSupplier,
-      'mapping_config' => pSQL(json_encode($mapping)),
+      'mapping' => pSQL(json_encode($mapping)),
       'date_add' => date('Y-m-d H:i:s'),
       'date_upd' => date('Y-m-d H:i:s')
     ]);
@@ -336,10 +339,18 @@ class AdminLotManagerImportController extends ModuleAdminController
     $totalRows = 0;
     $errors = [];
 
-    if (($handle = fopen($lot->file_path, "r")) !== FALSE) {
-      $header = fgetcsv($handle, 1000, ",");
+    if (($handle = fopen($lot->file_path, "r")) !== false) {
+      $delimiter = ',';
+      $firstLine = fgets($handle);
+      rewind($handle);
+      if (strpos($firstLine, ';') !== false) {
+        $delimiter = ';';
+      }
 
-      // Créer un index des colonnes
+      $header = fgetcsv($handle, 0, $delimiter);
+      $header = array_map(function ($h) {
+        return preg_replace('/^\x{EF}\x{BB}\x{BF}/', '', trim($h)); }, $header);
+
       $columnIndex = [];
       foreach ($mapping as $field => $columnName) {
         if (!empty($columnName)) {
@@ -350,98 +361,155 @@ class AdminLotManagerImportController extends ModuleAdminController
         }
       }
 
-      while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-        $totalRows++;
-
-        if (count($data) < count($header)) {
-          $errors[] = "Ligne $totalRows: nombre de colonnes insuffisant";
+      while (($data = fgetcsv($handle, 0, $delimiter)) !== false) {
+        if (count($data) !== count($header) || empty(array_filter($data))) {
           continue;
         }
+        $totalRows++;
 
-        $product = new LotManagerProduct();
-        $product->id_lot = $lot->id;
+        $quantity = (int) $this->getImportFieldValue($data, $columnIndex, 'quantity', 1);
+        if ($quantity < 1)
+          $quantity = 1;
 
-        // Mapper les données selon la configuration
-        $product->raw_name = $this->getFieldValue($data, $columnIndex, 'product_name', 'Produit sans nom');
-        $product->serial_number = $this->getFieldValue($data, $columnIndex, 'serial_number', '');
-        $product->quantity = (int) $this->getFieldValue($data, $columnIndex, 'quantity', 1);
-        $product->unit_price = (float) str_replace(',', '.', $this->getFieldValue($data, $columnIndex, 'unit_price', 0));
-        $product->supplier_reference = $this->getFieldValue($data, $columnIndex, 'supplier_reference', '');
-        $product->status = 'pending';
+        $baseSerialNumber = $this->getImportFieldValue($data, $columnIndex, 'serial_number');
 
-        // Champs additionnels pour enrichir les données
-        $additionalData = [];
-        $additionalData['brand'] = $this->getFieldValue($data, $columnIndex, 'brand', '');
-        $additionalData['model'] = $this->getFieldValue($data, $columnIndex, 'model', '');
-        $additionalData['color'] = $this->getFieldValue($data, $columnIndex, 'color', '');
-        $additionalData['storage'] = $this->getFieldValue($data, $columnIndex, 'storage', '');
-        $additionalData['condition'] = $this->getFieldValue($data, $columnIndex, 'condition', '');
+        for ($i = 0; $i < $quantity; $i++) {
+          $product = new LotManagerProduct();
+          $product->id_lot = $lot->id;
 
-        // Enrichir le nom du produit avec les données additionnelles
-        $product->raw_name = $this->enrichProductName($product->raw_name, $additionalData);
+          if ($quantity > 1 && !empty($baseSerialNumber)) {
+            $product->serial_number = $baseSerialNumber . '-' . ($i + 1);
+          } else {
+            $product->serial_number = $baseSerialNumber;
+          }
 
-        if ($product->add()) {
-          $importedCount++;
-        } else {
-          $errors[] = "Ligne $totalRows: erreur lors de l'ajout du produit";
+          $product->quantity = 1; // Chaque produit est unique
+          $product->raw_name = $this->getImportFieldValue($data, $columnIndex, 'product_name', 'Produit sans nom');
+          $product->unit_price = (float) str_replace(',', '.', $this->getImportFieldValue($data, $columnIndex, 'unit_price', 0));
+          $product->supplier_reference = $this->getImportFieldValue($data, $columnIndex, 'supplier_reference');
+          $product->status = 'pending';
+
+          $additionalData = [];
+          $additionalData['brand'] = $this->getImportFieldValue($data, $columnIndex, 'brand');
+          $additionalData['model'] = $this->getImportFieldValue($data, $columnIndex, 'model');
+          $additionalData['color'] = $this->getImportFieldValue($data, $columnIndex, 'color');
+          $additionalData['storage'] = $this->getImportFieldValue($data, $columnIndex, 'storage');
+          $additionalData['condition'] = $this->getImportFieldValue($data, $columnIndex, 'condition');
+          $product->raw_name = $this->enrichProductName($product->raw_name, $additionalData);
+
+          if ($product->add()) {
+            $importedCount++;
+          } else {
+            $errors[] = "Ligne $totalRows, Item " . ($i + 1) . ": erreur d'ajout.";
+          }
         }
       }
       fclose($handle);
     }
 
-    // Mettre à jour les statistiques du lot
-    $lot->updateStats();
-
-    $result = [
-      'success' => true,
-      'imported_count' => $importedCount,
-      'total_rows' => $totalRows
-    ];
-
-    if (!empty($errors)) {
-      $result['warnings'] = $errors;
-    }
-
-    return $result;
-  }
-
-  private function importExcelWithMapping($lot, $mapping)
-  {
-    // Pour l'instant, simuler l'import Excel avec des données d'exemple
-    $sampleData = [
-      ['iPhone 11 64GB Black Grade B', '1', '450.00', 'REF-001', 'Apple', 'iPhone 11', 'Noir', '64GB', 'Grade B'],
-      ['Samsung Galaxy S20 128GB Blue', '2', '380.00', 'REF-002', 'Samsung', 'Galaxy S20', 'Bleu', '128GB', 'Grade A'],
-      ['iPad Air 64GB WiFi Silver', '1', '320.00', 'REF-003', 'Apple', 'iPad Air', 'Argent', '64GB', 'Grade B']
-    ];
-
-    $importedCount = 0;
-    $totalRows = count($sampleData);
-
-    foreach ($sampleData as $rowIndex => $data) {
-      $product = new LotManagerProduct();
-      $product->id_lot = $lot->id;
-      $product->raw_name = $data[0];
-      $product->quantity = (int) $data[1];
-      $product->unit_price = (float) $data[2];
-      $product->supplier_reference = $data[3];
-      $product->status = 'pending';
-
-      if ($product->add()) {
-        $importedCount++;
-      }
-    }
-
-    // Mettre à jour les statistiques du lot
     $lot->updateStats();
 
     return [
       'success' => true,
       'imported_count' => $importedCount,
-      'total_rows' => $totalRows
+      'total_rows' => $totalRows,
+      'warnings' => $errors,
     ];
   }
 
-  private function getFieldValue($data, $columnIndex, $field, $default = '')
+  private function importExcelWithMapping($lot, $mapping)
+  {
+    try {
+      $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($lot->file_path);
+      $worksheet = $spreadsheet->getActiveSheet();
+      $totalRows = $worksheet->getHighestRow();
+      $header = [];
+      $importedCount = 0;
+      $errors = [];
+
+      foreach ($worksheet->getRowIterator(1, 1) as $row) {
+        foreach ($row->getCellIterator() as $cell) {
+          $header[] = trim($cell->getValue());
+        }
+      }
+
+      $columnIndex = [];
+      foreach ($mapping as $field => $columnName) {
+        if (!empty($columnName)) {
+          $index = array_search($columnName, $header);
+          if ($index !== false) {
+            $columnIndex[$field] = $index;
+          }
+        }
+      }
+
+      for ($rowIndex = 2; $rowIndex <= $totalRows; $rowIndex++) {
+        $rowIterator = $worksheet->getRowIterator($rowIndex, 1);
+        if (!$rowIterator->valid())
+          continue;
+
+        $data = [];
+        $cellIterator = $rowIterator->current()->getCellIterator();
+        foreach ($cellIterator as $cell) {
+          $data[] = $cell->getValue();
+        }
+
+        if (empty(array_filter($data)))
+          continue;
+
+        $quantity = (int) $this->getImportFieldValue($data, $columnIndex, 'quantity', 1);
+        if ($quantity < 1)
+          $quantity = 1;
+
+        $baseSerialNumber = $this->getImportFieldValue($data, $columnIndex, 'serial_number');
+
+        for ($i = 0; $i < $quantity; $i++) {
+          $product = new LotManagerProduct();
+          $product->id_lot = $lot->id;
+
+          if ($quantity > 1 && !empty($baseSerialNumber)) {
+            $product->serial_number = $baseSerialNumber . '-' . ($i + 1);
+          } else {
+            $product->serial_number = $baseSerialNumber;
+          }
+
+          $product->quantity = 1; // Chaque produit est unique
+          $product->raw_name = $this->getImportFieldValue($data, $columnIndex, 'product_name', 'Produit sans nom');
+          $product->unit_price = (float) str_replace(',', '.', $this->getImportFieldValue($data, $columnIndex, 'unit_price', 0));
+          $product->supplier_reference = $this->getImportFieldValue($data, $columnIndex, 'supplier_reference');
+          $product->status = 'pending';
+
+          $additionalData = [];
+          $additionalData['brand'] = $this->getImportFieldValue($data, $columnIndex, 'brand');
+          $additionalData['model'] = $this->getImportFieldValue($data, $columnIndex, 'model');
+          $additionalData['color'] = $this->getImportFieldValue($data, $columnIndex, 'color');
+          $additionalData['storage'] = $this->getImportFieldValue($data, $columnIndex, 'storage');
+          $additionalData['condition'] = $this->getImportFieldValue($data, $columnIndex, 'condition');
+          $product->raw_name = $this->enrichProductName($product->raw_name, $additionalData);
+
+          if ($product->add()) {
+            $importedCount++;
+          } else {
+            $errors[] = "Ligne $rowIndex, Item " . ($i + 1) . ": erreur d'ajout.";
+          }
+        }
+      }
+
+      $lot->updateStats();
+
+      return [
+        'success' => true,
+        'imported_count' => $importedCount,
+        'total_rows' => $totalRows > 0 ? $totalRows - 1 : 0,
+        'warnings' => $errors,
+      ];
+
+    } catch (\Exception $e) {
+      return ['success' => false, 'message' => 'Erreur lors de l\'importation: ' . $e->getMessage()];
+    }
+  }
+
+  private function getImportFieldValue($data, $columnIndex, $field, $default = '')
   {
     if (isset($columnIndex[$field]) && isset($data[$columnIndex[$field]])) {
       return trim($data[$columnIndex[$field]]);
@@ -452,45 +520,23 @@ class AdminLotManagerImportController extends ModuleAdminController
   private function enrichProductName($baseName, $additionalData)
   {
     $enrichedName = $baseName;
-
-    // Ajouter les informations manquantes si elles ne sont pas déjà dans le nom
     foreach ($additionalData as $key => $value) {
-      if (!empty($value) && stripos($enrichedName, $value) === false) {
-        switch ($key) {
-          case 'storage':
-            if (!preg_match('/\d+(GB|TB)/i', $enrichedName)) {
-              $enrichedName .= ' ' . $value;
-            }
-            break;
-          case 'color':
-            if (!preg_match('/(noir|blanc|bleu|rouge|vert|jaune|rose|gris|argent|or)/i', $enrichedName)) {
-              $enrichedName .= ' ' . $value;
-            }
-            break;
-          case 'condition':
-            if (!preg_match('/grade [abc]/i', $enrichedName)) {
-              $enrichedName .= ' ' . $value;
-            }
-            break;
-        }
+      if (!empty($value) && stripos($enrichedName, (string) $value) === false) {
+        $enrichedName .= ' ' . $value;
       }
     }
-
     return $enrichedName;
   }
 
   public function ajaxProcessLoadMappingProfile()
   {
     $profileId = (int) Tools::getValue('profile_id');
-
     $profile = Db::getInstance()->getRow('
-            SELECT * 
-            FROM `' . _DB_PREFIX_ . 'lot_manager_mapping_profiles` 
+            SELECT * FROM `' . _DB_PREFIX_ . 'lot_manager_mapping_profiles` 
             WHERE id_mapping_profile = ' . $profileId
     );
-
     if ($profile) {
-      $mapping = json_decode($profile['mapping_config'], true);
+      $mapping = json_decode($profile['mapping'], true);
       die(json_encode(['success' => true, 'mapping' => $mapping]));
     } else {
       die(json_encode(['success' => false, 'message' => 'Profil introuvable']));
@@ -500,12 +546,14 @@ class AdminLotManagerImportController extends ModuleAdminController
   public function ajaxProcessAutoDetectMapping()
   {
     $columns = Tools::getValue('columns');
+    if (!is_array($columns)) {
+      die(json_encode(['success' => false, 'mapping' => []]));
+    }
     $mappingFields = $this->getMappingFields();
     $autoMapping = [];
 
     foreach ($mappingFields as $fieldKey => $fieldInfo) {
       $autoMapping[$fieldKey] = '';
-
       if (isset($fieldInfo['auto_patterns'])) {
         foreach ($columns as $column) {
           $columnLower = strtolower($column);
@@ -518,7 +566,6 @@ class AdminLotManagerImportController extends ModuleAdminController
         }
       }
     }
-
     die(json_encode(['success' => true, 'mapping' => $autoMapping]));
   }
 }
