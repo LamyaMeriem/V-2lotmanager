@@ -15,7 +15,7 @@ class AdminLotManagerDashboardController extends ModuleAdminController
 
         parent::__construct();
 
-        $this->meta_title = $this->l('Tableau de Bord - Gestionnaire de Lots');
+        $this->meta_title = $this->l('Dashboard');
     }
 
     public function initContent()
@@ -23,7 +23,7 @@ class AdminLotManagerDashboardController extends ModuleAdminController
         parent::initContent();
 
         // Récupération des statistiques
-        $stats = $this->getStatistics();
+        $stats = $this->getDashboardKpis();
         $recentLots = LotManagerLot::getRecentLots(5);
         $topDefects = LotManagerDefect::getTopDefects(5);
 
@@ -84,6 +84,67 @@ class AdminLotManagerDashboardController extends ModuleAdminController
         return $stats;
     }
 
+    private function getDashboardKpis()
+    {
+        // --- Date ranges --- //
+        $dateFromCurrentMonth = date('Y-m-01 00:00:00');
+        $dateToCurrentMonth = date('Y-m-t 23:59:59');
+
+        $dateFromPreviousMonth = date('Y-m-01 00:00:00', strtotime('-1 month'));
+        $dateToPreviousMonth = date('Y-m-t 23:59:59', strtotime('-1 month'));
+
+        // --- KPI Calculations --- //
+        $currentMonthStats = $this->fetchStatsForPeriod($dateFromCurrentMonth, $dateToCurrentMonth);
+        $previousMonthStats = $this->fetchStatsForPeriod($dateFromPreviousMonth, $dateToPreviousMonth);
+
+        $lotsInProcessing = Db::getInstance()->getValue('
+            SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'lot_manager_lots` 
+            WHERE status IN ("pending", "processing")'
+        );
+
+        // --- Build the final array --- //
+        return [
+            'lots_processing' => (int) $lotsInProcessing,
+            'products_processed' => (int) $currentMonthStats['total_products'],
+            'total_value' => (float) $currentMonthStats['total_cost'],
+            'functional_rate' => ($currentMonthStats['total_products'] > 0) ? round(($currentMonthStats['functional_products'] / $currentMonthStats['total_products']) * 100, 1) : 0,
+
+            'products_change' => $this->calculateChange($currentMonthStats['total_products'], $previousMonthStats['total_products']),
+            'value_change' => $this->calculateChange($currentMonthStats['total_cost'], $previousMonthStats['total_cost']),
+            'rate_change' => $this->calculateChange(
+                ($currentMonthStats['total_products'] > 0) ? ($currentMonthStats['functional_products'] / $currentMonthStats['total_products']) : 0,
+                ($previousMonthStats['total_products'] > 0) ? ($previousMonthStats['functional_products'] / $previousMonthStats['total_products']) : 0
+            )
+        ];
+    }
+
+    /**
+     * Fetches statistics for a given period from the database.
+     * This method now resides within the controller that needs it.
+     *
+     * @param string $dateFrom
+     * @param string $dateTo
+     * @return array
+     */
+    private function fetchStatsForPeriod($dateFrom, $dateTo)
+    {
+        $query = new DbQuery();
+        $query->select('
+            COALESCE(SUM(total_products), 0) as total_products,
+            COALESCE(SUM(functional_products), 0) as functional_products,
+            COALESCE(SUM(total_cost), 0) as total_cost
+        ');
+        $query->from('lot_manager_lots');
+        $query->where('date_add BETWEEN \'' . pSQL($dateFrom) . '\' AND \'' . pSQL($dateTo) . '\'');
+
+        $result = Db::getInstance()->getRow($query);
+        return $result ?: [
+            'total_products' => 0,
+            'functional_products' => 0,
+            'total_cost' => 0.0,
+        ];
+    }
+
     private function sanitizeStats($stats)
     {
         if (!$stats || !is_array($stats)) {
@@ -109,15 +170,17 @@ class AdminLotManagerDashboardController extends ModuleAdminController
         ];
     }
 
+    /**
+     * Calculates the percentage change between two values.
+     * @param float $current
+     * @param float $previous
+     * @return float
+     */
     private function calculateChange($current, $previous)
     {
-        $current = (float) ($current ?: 0);
-        $previous = (float) ($previous ?: 0);
-
         if ($previous == 0) {
-            return $current > 0 ? 100 : 0;
+            return ($current > 0) ? 100.0 : 0.0;
         }
-
         return round((($current - $previous) / $previous) * 100, 1);
     }
 }
