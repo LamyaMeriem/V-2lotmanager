@@ -19,7 +19,7 @@
                                 <i class="icon-clock-o icon-5x"></i>
                             </div>
                             <div class="col-xs-9 text-right">
-                                <div class="huge">{$stats.lots_processing}</div>
+                                <div class="huge">{$stats.lots_processing|default:0}</div>
                                 <div>{l s='Lots en traitement' mod='lotmanager'}</div>
                             </div>
                         </div>
@@ -35,11 +35,11 @@
                                 <i class="icon-check-circle icon-5x"></i>
                             </div>
                             <div class="col-xs-9 text-right">
-                                <div class="huge">{$stats.products_processed}</div>
+                                <div class="huge">{$stats.products_processed|default:0}</div>
                                 <div>{l s='Produits traités ce mois' mod='lotmanager'}</div>
-                                {if $stats.products_change > 0}
+                                {if isset($stats.products_change) && $stats.products_change > 0}
                                     <small class="text-success">+{$stats.products_change}%</small>
-                                {elseif $stats.products_change < 0}
+                                {elseif isset($stats.products_change) && $stats.products_change < 0}
                                     <small class="text-danger">{$stats.products_change}%</small>
                                 {/if}
                             </div>
@@ -56,11 +56,17 @@
                                 <i class="icon-euro icon-5x"></i>
                             </div>
                             <div class="col-xs-9 text-right">
-                                <div class="huge">{displayPrice price=$stats.total_value}</div>
+                                <div class="huge">
+                                    {if isset($stats.total_value) && $stats.total_value > 0}
+                                        {displayPrice price=$stats.total_value}
+                                    {else}
+                                        €0.00
+                                    {/if}
+                                </div>
                                 <div>{l s='Valeur des achats' mod='lotmanager'}</div>
-                                {if $stats.value_change > 0}
+                                {if isset($stats.value_change) && $stats.value_change > 0}
                                     <small class="text-success">+{$stats.value_change}%</small>
-                                {elseif $stats.value_change < 0}
+                                {elseif isset($stats.value_change) && $stats.value_change < 0}
                                     <small class="text-danger">{$stats.value_change}%</small>
                                 {/if}
                             </div>
@@ -77,11 +83,11 @@
                                 <i class="icon-bar-chart icon-5x"></i>
                             </div>
                             <div class="col-xs-9 text-right">
-                                <div class="huge">{$stats.functional_rate|string_format:"%.1f"}%</div>
+                                <div class="huge">{($stats.functional_rate|default:0)|string_format:"%.1f"}%</div>
                                 <div>{l s='Taux de fonctionnalité' mod='lotmanager'}</div>
-                                {if $stats.rate_change > 0}
+                                {if isset($stats.rate_change) && $stats.rate_change > 0}
                                     <small class="text-success">+{$stats.rate_change}%</small>
-                                {elseif $stats.rate_change < 0}
+                                {elseif isset($stats.rate_change) && $stats.rate_change < 0}
                                     <small class="text-danger">{$stats.rate_change}%</small>
                                 {/if}
                             </div>
@@ -103,7 +109,7 @@
                         </a>
                     </div>
                     <div class="panel-body">
-                        {if $recent_lots}
+                        {if $recent_lots && count($recent_lots) > 0}
                             <div class="table-responsive">
                                 <table class="table table-striped">
                                     <thead>
@@ -122,7 +128,7 @@
                                                     <strong>{$lot.name}</strong><br>
                                                     <small class="text-muted">{$lot.lot_number}</small>
                                                 </td>
-                                                <td>{$lot.supplier_name}</td>
+                                                <td>{$lot.supplier_name|default:'N/A'}</td>
                                                 <td>
                                                     {if $lot.status == 'completed'}
                                                         <span class="label label-success">{l s='Terminé' mod='lotmanager'}</span>
@@ -132,8 +138,14 @@
                                                         <span class="label label-default">{l s='En attente' mod='lotmanager'}</span>
                                                     {/if}
                                                 </td>
-                                                <td>{$lot.processed_products}/{$lot.total_products}</td>
-                                                <td>{displayPrice price=$lot.total_cost}</td>
+                                                <td>{$lot.processed_products|default:0}/{$lot.total_products|default:0}</td>
+                                                <td>
+                                                    {if isset($lot.total_cost) && $lot.total_cost > 0}
+                                                        {displayPrice price=$lot.total_cost}
+                                                    {else}
+                                                        €0.00
+                                                    {/if}
+                                                </td>
                                             </tr>
                                         {/foreach}
                                     </tbody>
@@ -153,13 +165,13 @@
                         {l s='Top Pannes' mod='lotmanager'}
                     </div>
                     <div class="panel-body">
-                        {if $top_defects}
+                        {if $top_defects && count($top_defects) > 0}
                             {foreach $top_defects as $defect}
                                 <div class="progress-group">
                                     <span class="progress-text">{$defect.name}</span>
-                                    <span class="float-right"><b>{$defect.current_frequency}</b></span>
+                                    <span class="float-right"><b>{$defect.current_frequency|default:0}</b></span>
                                     <div class="progress progress-sm">
-                                        <div class="progress-bar progress-bar-danger" style="width: {if $defect.current_frequency > 0}{($defect.current_frequency / $top_defects[0].current_frequency) * 100}{else}0{/if}%"></div>
+                                        <div class="progress-bar progress-bar-danger" style="width: {if isset($defect.current_frequency) && $defect.current_frequency > 0 && isset($top_defects[0].current_frequency) && $top_defects[0].current_frequency > 0}{($defect.current_frequency / $top_defects[0].current_frequency) * 100}{else}0{/if}%"></div>
                                     </div>
                                 </div>
                             {/foreach}
