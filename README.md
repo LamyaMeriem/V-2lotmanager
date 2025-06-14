@@ -17,7 +17,7 @@ Le module Gestionnaire de Lots est une solution complète pour optimiser et trac
 - Interface de mapping pour associer les colonnes
 - Sauvegarde des profils de mapping par fournisseur
 - Validation et prévisualisation des données
-
+ 
 ### 🔍 Qualification des Produits
 - Interface de test produit par produit
 - Classification Fonctionnel/Défectueux
