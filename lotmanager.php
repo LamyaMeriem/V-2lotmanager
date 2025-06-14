@@ -223,6 +223,40 @@ class LotManager extends Module
             ]);
         }
 
+        // Fournisseurs par défaut
+        $suppliers = [
+            [
+                'name' => 'SYA Electronics',
+                'contact_name' => 'Jean Dupont',
+                'email' => 'contact@sya-electronics.com',
+                'phone' => '+33 1 23 45 67 89'
+            ],
+            [
+                'name' => 'TechSource Pro',
+                'contact_name' => 'Marie Martin',
+                'email' => 'orders@techsource.fr',
+                'phone' => '+33 1 98 76 54 32'
+            ],
+            [
+                'name' => 'Mobile Discount',
+                'contact_name' => 'Pierre Leroy',
+                'email' => 'achat@mobilediscount.fr',
+                'phone' => '+33 1 11 22 33 44'
+            ]
+        ];
+
+        foreach ($suppliers as $supplier) {
+            Db::getInstance()->insert('lot_manager_suppliers', [
+                'name' => pSQL($supplier['name']),
+                'contact_name' => pSQL($supplier['contact_name']),
+                'email' => pSQL($supplier['email']),
+                'phone' => pSQL($supplier['phone']),
+                'active' => 1,
+                'date_add' => date('Y-m-d H:i:s'),
+                'date_upd' => date('Y-m-d H:i:s')
+            ]);
+        }
+
         // Dictionnaire par défaut
         $dictionary = [
             ['category' => 'Stockage', 'pattern' => 'Go,gb,giga,GB', 'replacement' => 'GB'],
@@ -281,7 +315,7 @@ class LotManager extends Module
         foreach (Language::getLanguages(true) as $lang) {
             $tab->name[$lang['id_lang']] = 'Gestionnaire de Lots';
         }
-        $tab->id_parent = (int)Tab::getIdFromClassName('AdminCatalog');
+        $tab->id_parent = (int) Tab::getIdFromClassName('AdminCatalog');
         $tab->module = $this->name;
         $tab->icon = 'inventory_2';
 
@@ -307,6 +341,11 @@ class LotManager extends Module
                 'parent' => 'AdminLotManager'
             ],
             [
+                'class_name' => 'AdminLotManagerImport',
+                'name' => 'Import',
+                'parent' => 'AdminLotManager'
+            ],
+            [
                 'class_name' => 'AdminLotManagerStatistics',
                 'name' => 'Statistiques',
                 'parent' => 'AdminLotManager'
@@ -326,7 +365,7 @@ class LotManager extends Module
             foreach (Language::getLanguages(true) as $lang) {
                 $tab->name[$lang['id_lang']] = $subTab['name'];
             }
-            $tab->id_parent = (int)Tab::getIdFromClassName($subTab['parent']);
+            $tab->id_parent = (int) Tab::getIdFromClassName($subTab['parent']);
             $tab->module = $this->name;
 
             if (!$tab->add()) {
@@ -342,6 +381,7 @@ class LotManager extends Module
         $tabClasses = [
             'AdminLotManagerConfiguration',
             'AdminLotManagerStatistics',
+            'AdminLotManagerImport',
             'AdminLotManagerProducts',
             'AdminLotManagerLots',
             'AdminLotManagerDashboard',
@@ -349,7 +389,7 @@ class LotManager extends Module
         ];
 
         foreach ($tabClasses as $tabClass) {
-            $idTab = (int)Tab::getIdFromClassName($tabClass);
+            $idTab = (int) Tab::getIdFromClassName($tabClass);
             if ($idTab) {
                 $tab = new Tab($idTab);
                 $tab->delete();
@@ -379,10 +419,10 @@ class LotManager extends Module
         $output = '';
 
         if (Tools::isSubmit('submitLotManagerConfig')) {
-            Configuration::updateValue('LOT_MANAGER_AUTO_INCREMENT', (int)Tools::getValue('auto_increment'));
-            Configuration::updateValue('LOT_MANAGER_DEFAULT_MARGIN', (float)Tools::getValue('default_margin'));
+            Configuration::updateValue('LOT_MANAGER_AUTO_INCREMENT', (int) Tools::getValue('auto_increment'));
+            Configuration::updateValue('LOT_MANAGER_DEFAULT_MARGIN', (float) Tools::getValue('default_margin'));
             Configuration::updateValue('LOT_MANAGER_UPLOAD_PATH', pSQL(Tools::getValue('upload_path')));
-            
+
             $output .= $this->displayConfirmation($this->l('Configuration mise à jour avec succès.'));
         }
 
@@ -391,7 +431,7 @@ class LotManager extends Module
 
     public function displayForm()
     {
-        $defaultLang = (int)Configuration::get('PS_LANG_DEFAULT');
+        $defaultLang = (int) Configuration::get('PS_LANG_DEFAULT');
 
         $fieldsForm[0]['form'] = [
             'legend' => [
