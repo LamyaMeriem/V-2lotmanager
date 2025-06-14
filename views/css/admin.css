@@ -1,0 +1,291 @@
+/**
+ * Lot Manager - Admin CSS
+ */
+
+/* Dashboard Styles */
+.lot-manager-dashboard .kpi-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.lot-manager-dashboard .kpi-value {
+    font-size: 2.5em;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.lot-manager-dashboard .kpi-label {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.lot-manager-dashboard .kpi-change {
+    font-size: 0.8em;
+    margin-top: 5px;
+}
+
+.lot-manager-dashboard .kpi-change.positive {
+    color: #28a745;
+}
+
+.lot-manager-dashboard .kpi-change.negative {
+    color: #dc3545;
+}
+
+/* Lot Status Badges */
+.lot-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.lot-status.pending {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.lot-status.processing {
+    background-color: #17a2b8;
+    color: #fff;
+}
+
+.lot-status.completed {
+    background-color: #28a745;
+    color: #fff;
+}
+
+.lot-status.archived {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+/* Product Status */
+.product-status {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.75em;
+    font-weight: bold;
+}
+
+.product-status.functional {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.product-status.defective {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.product-status.pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+/* Import Mapping Interface */
+.mapping-interface {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.mapping-row {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.mapping-row:last-child {
+    border-bottom: none;
+}
+
+.mapping-field {
+    flex: 1;
+    margin-right: 20px;
+}
+
+.mapping-select {
+    flex: 1;
+}
+
+.mapping-arrow {
+    margin: 0 15px;
+    color: #6c757d;
+}
+
+/* File Upload Area */
+.file-upload-area {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.file-upload-area:hover {
+    border-color: #007bff;
+    background: #e3f2fd;
+}
+
+.file-upload-area.dragover {
+    border-color: #007bff;
+    background: #e3f2fd;
+}
+
+/* Progress Bars */
+.lot-progress {
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.lot-progress-bar {
+    height: 100%;
+    background-color: #007bff;
+    transition: width 0.3s ease;
+}
+
+/* Defect Management */
+.defect-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.defect-item.active {
+    border-color: #28a745;
+    background-color: #f8fff9;
+}
+
+.defect-item.inactive {
+    border-color: #6c757d;
+    background-color: #f8f9fa;
+    opacity: 0.7;
+}
+
+.defect-toggle {
+    margin-left: auto;
+}
+
+/* Statistics Charts */
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin: 20px 0;
+}
+
+/* Responsive Tables */
+.table-responsive-stack tr {
+    display: block;
+    border: 1px solid #ccc;
+    margin-bottom: 10px;
+}
+
+.table-responsive-stack td {
+    display: block;
+    text-align: right;
+    border: none;
+    padding-left: 50%;
+    position: relative;
+}
+
+.table-responsive-stack td:before {
+    content: attr(data-label);
+    position: absolute;
+    left: 6px;
+    width: 45%;
+    text-align: left;
+    font-weight: bold;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .lot-manager-dashboard .kpi-card {
+        margin-bottom: 15px;
+    }
+    
+    .mapping-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .mapping-field,
+    .mapping-select {
+        margin-bottom: 10px;
+        margin-right: 0;
+    }
+    
+    .mapping-arrow {
+        margin: 10px 0;
+        text-align: center;
+    }
+}
+
+/* Loading States */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #007bff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Notifications */
+.notification {
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.notification.success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.notification.error {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.notification.warning {
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+    color: #856404;
+}
+
+.notification.info {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+    color: #0c5460;
+}

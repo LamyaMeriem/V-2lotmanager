@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<module>
+    <name>lotmanager</name>
+    <displayName><![CDATA[Gestionnaire de Lots]]></displayName>
+    <version><![CDATA[1.0.0]]></version>
+    <description><![CDATA[Module de gestion et traçabilité des lots d'achat de produits reconditionnés]]></description>
+    <author><![CDATA[Your Company]]></author>
+    <tab><![CDATA[administration]]></tab>
+    <confirmUninstall><![CDATA[Êtes-vous sûr de vouloir désinstaller ce module ?]]></confirmUninstall>
+    <is_configurable>1</is_configurable>
+    <need_instance>0</need_instance>
+    <limited_countries></limited_countries>
+</module>
