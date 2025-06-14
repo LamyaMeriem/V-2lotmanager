@@ -252,7 +252,7 @@ class AdminLotManagerImportController extends ModuleAdminController
     return Db::getInstance()->executeS('
             SELECT mp.*, s.name as supplier_name
             FROM `' . _DB_PREFIX_ . 'lot_manager_mapping_profiles` mp
-            LEFT JOIN `' . _DB_PREFIX_ . 'lot_manager_suppliers` s ON mp.id_supplier = s.id_lot_supplier
+            LEFT JOIN `' . _DB_PREFIX_ . 'lot_manager_suppliers` s ON mp.id_supplier = s.id_supplier
             ORDER BY mp.name ASC
         ');
   }
