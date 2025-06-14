@@ -51,19 +51,30 @@ class AdminLotManagerStatisticsController extends ModuleAdminController
 
   private function getGeneralStatistics($dateFrom, $dateTo)
   {
-    return Db::getInstance()->getRow('
-            SELECT 
-                COUNT(DISTINCT l.id_lot) as total_lots,
-                COUNT(p.id_lot_product) as total_products,
-                SUM(CASE WHEN p.status = "functional" THEN 1 ELSE 0 END) as functional_products,
-                SUM(CASE WHEN p.status = "defective" THEN 1 ELSE 0 END) as defective_products,
-                SUM(p.unit_price * p.quantity) as total_cost,
-                SUM(CASE WHEN p.sale_price > 0 THEN p.sale_price ELSE 0 END) as total_revenue,
-                AVG(CASE WHEN l.total_products > 0 THEN (l.functional_products / l.total_products) * 100 ELSE 0 END) as avg_functional_rate
-            FROM `' . _DB_PREFIX_ . 'lot_manager_lots` l
-            LEFT JOIN `' . _DB_PREFIX_ . 'lot_manager_products` p ON l.id_lot = p.id_lot
-            WHERE l.date_add BETWEEN "' . pSQL($dateFrom) . '" AND "' . pSQL($dateTo) . '"
+    $query = new DbQuery();
+    $query->select('
+            COUNT(DISTINCT l.id_lot) as total_lots,
+            COALESCE(SUM(p.quantity), 0) as total_products,
+            COALESCE(SUM(CASE WHEN p.status = "functional" THEN p.quantity ELSE 0 END), 0) as functional_products,
+            COALESCE(SUM(CASE WHEN p.status = "defective" THEN p.quantity ELSE 0 END), 0) as defective_products,
+            COALESCE(SUM(p.unit_price * p.quantity), 0) as total_cost,
+            COALESCE(SUM(p.sale_price * p.quantity), 0) as total_revenue
         ');
+    $query->from('lot_manager_lots', 'l');
+    $query->leftJoin('lot_manager_products', 'p', 'l.id_lot = p.id_lot');
+    $query->where('l.date_add BETWEEN \'' . pSQL($dateFrom) . ' 00:00:00\' AND \'' . pSQL($dateTo) . ' 23:59:59\'');
+
+    $stats = Db::getInstance()->getRow($query);
+
+    // --- AJOUT DE LA CORRECTION ICI --- //
+    // On calcule le taux en PHP pour éviter les divisions par zéro en SQL
+    if ($stats['total_products'] > 0) {
+      $stats['avg_functional_rate'] = ($stats['functional_products'] / $stats['total_products']) * 100;
+    } else {
+      $stats['avg_functional_rate'] = 0;
+    }
+
+    return $stats;
   }
 
   private function getSupplierStatistics($dateFrom, $dateTo)
@@ -78,10 +89,10 @@ class AdminLotManagerStatisticsController extends ModuleAdminController
                 SUM(p.unit_price * p.quantity) as total_cost,
                 AVG(CASE WHEN l.total_products > 0 THEN (l.functional_products / l.total_products) * 100 ELSE 0 END) as avg_functional_rate
             FROM `' . _DB_PREFIX_ . 'lot_manager_suppliers` s
-            LEFT JOIN `' . _DB_PREFIX_ . 'lot_manager_lots` l ON s.id_lot_supplier = l.id_supplier
+            LEFT JOIN `' . _DB_PREFIX_ . 'lot_manager_lots` l ON s.id_supplier = l.id_supplier
             LEFT JOIN `' . _DB_PREFIX_ . 'lot_manager_products` p ON l.id_lot = p.id_lot
             WHERE l.date_add BETWEEN "' . pSQL($dateFrom) . '" AND "' . pSQL($dateTo) . '"
-            GROUP BY s.id_lot_supplier
+            GROUP BY s.id_supplier
             ORDER BY total_products DESC
         ');
   }
