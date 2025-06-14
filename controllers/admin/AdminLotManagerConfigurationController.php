@@ -55,11 +55,14 @@ class AdminLotManagerConfigurationController extends ModuleAdminController
 
   private function getSuppliers()
   {
-    return Db::getInstance()->executeS('
-            SELECT * 
-            FROM `' . _DB_PREFIX_ . 'lot_manager_suppliers` 
-            ORDER BY name ASC
-        ');
+    $sql = new DbQuery();
+    $sql->select('s.*, COUNT(l.id_lot) as total_lots');
+    $sql->from('lot_manager_suppliers', 's');
+    $sql->leftJoin('lot_manager_lots', 'l', 's.id_supplier = l.id_supplier');
+    $sql->groupBy('s.id_supplier');
+    $sql->orderBy('s.name ASC');
+
+    return Db::getInstance()->executeS($sql);
   }
 
   private function getDefects()
