@@ -91,7 +91,7 @@ class AdminLotManagerLotsController extends ModuleAdminController
     public function renderList()
     {
         $this->_select = 's.name as supplier_name';
-        $this->_join = 'LEFT JOIN `' . _DB_PREFIX_ . 'lot_manager_suppliers` s ON a.id_supplier = s.id_lot_supplier';
+        $this->_join = 'LEFT JOIN `' . _DB_PREFIX_ . 'lot_manager_suppliers` s ON a.id_supplier = s.id_supplier';
 
         return parent::renderList();
     }
@@ -102,7 +102,7 @@ class AdminLotManagerLotsController extends ModuleAdminController
         $supplier_options = [];
         foreach ($suppliers as $supplier) {
             $supplier_options[] = [
-                'id' => $supplier['id_lot_supplier'],
+                'id' => $supplier['id_supplier'],
                 'name' => $supplier['name']
             ];
         }
@@ -338,15 +338,20 @@ class AdminLotManagerLotsController extends ModuleAdminController
         $stats = [
             'total_products' => count($products),
             'pending_products' => count(array_filter($products, function ($p) {
-                return $p['status'] == 'pending'; })),
+                return $p['status'] == 'pending';
+            })),
             'functional_products' => count(array_filter($products, function ($p) {
-                return $p['status'] == 'functional'; })),
+                return $p['status'] == 'functional';
+            })),
             'defective_products' => count(array_filter($products, function ($p) {
-                return $p['status'] == 'defective'; })),
+                return $p['status'] == 'defective';
+            })),
             'total_cost' => array_sum(array_map(function ($p) {
-                return $p['unit_price'] * $p['quantity']; }, $products)),
+                return $p['unit_price'] * $p['quantity'];
+            }, $products)),
             'estimated_value' => array_sum(array_map(function ($p) {
-                return $p['sale_price'] ?: 0; }, $products))
+                return $p['sale_price'] ?: 0;
+            }, $products))
         ];
 
         $this->context->smarty->assign([
