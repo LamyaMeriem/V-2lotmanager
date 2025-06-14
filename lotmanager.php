@@ -47,45 +47,50 @@ class LotManager extends Module
         $sql = [];
 
         $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'lot_manager_lots` (
-            `id_lot` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-            `lot_number` VARCHAR(50) NOT NULL,
-            `name` VARCHAR(255) NOT NULL,
-            `id_supplier` INT(11) UNSIGNED NOT NULL,
-            `status` VARCHAR(20) NOT NULL DEFAULT \'pending\',
-            `total_cost` DECIMAL(20, 6) DEFAULT 0.00,
-            `estimated_value` DECIMAL(20, 6) DEFAULT 0.00,
-            `total_products` INT(11) DEFAULT 0,
-            `processed_products` INT(11) DEFAULT 0,
-            `functional_products` INT(11) DEFAULT 0,
-            `defective_products` INT(11) DEFAULT 0,
-            `file_name` VARCHAR(255) DEFAULT NULL,
-            `date_add` DATETIME NOT NULL,
-            `date_upd` DATETIME NOT NULL,
-            PRIMARY KEY (`id_lot`),
-            UNIQUE KEY `lot_number` (`lot_number`)
-        ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8mb4;';
+    `id_lot` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `lot_number` VARCHAR(50) NOT NULL,
+    `name` VARCHAR(255) NOT NULL,
+    `id_supplier` INT(11) UNSIGNED NOT NULL,
+    `status` VARCHAR(20) NOT NULL DEFAULT \'pending\',
+    `total_cost` DECIMAL(20, 6) DEFAULT 0.00,
+    `estimated_value` DECIMAL(20, 6) DEFAULT 0.00,
+    `total_products` INT(11) DEFAULT 0,
+    `processed_products` INT(11) DEFAULT 0,
+    `functional_products` INT(11) DEFAULT 0,
+    `defective_products` INT(11) DEFAULT 0,
+    `file_name` VARCHAR(255) DEFAULT NULL,
+    `file_path` VARCHAR(500) DEFAULT NULL,
+    `mapping_profile` TEXT,
+    `date_add` DATETIME NOT NULL,
+    `date_upd` DATETIME NOT NULL,
+    PRIMARY KEY (`id_lot`),
+    UNIQUE KEY `lot_number` (`lot_number`)
+) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8mb4;';
 
         $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'lot_manager_products` (
-            `id_lot_product` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-            `id_lot` INT(11) UNSIGNED NOT NULL,
-            `raw_name` VARCHAR(255) NOT NULL,
-            `imei` VARCHAR(100) DEFAULT NULL,
-            `quantity` INT(11) UNSIGNED NOT NULL DEFAULT 1,
-            `unit_price` DECIMAL(20, 6) NOT NULL,
-            `supplier_reference` VARCHAR(100) DEFAULT NULL,
-            `status` VARCHAR(20) NOT NULL DEFAULT \'pending\',
-            `id_product` INT(11) UNSIGNED DEFAULT NULL,
-            `id_product_attribute` INT(11) UNSIGNED DEFAULT NULL,
-            `sku` VARCHAR(100) DEFAULT NULL,
-            `sale_price` DECIMAL(20, 6) DEFAULT NULL,
-            `cancellation_reason` TEXT,
-            `date_add` DATETIME NOT NULL,
-            `date_upd` DATETIME NOT NULL,
-            PRIMARY KEY (`id_lot_product`),
-            KEY `id_lot` (`id_lot`),
-            KEY `imei` (`imei`)
-        ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8mb4;';
-
+    `id_lot_product` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `id_lot` INT(11) UNSIGNED NOT NULL,
+    `raw_name` VARCHAR(500) NOT NULL,
+    `serial_number` VARCHAR(100) DEFAULT NULL,
+    `imei` VARCHAR(100) DEFAULT NULL,
+    `quantity` INT(11) UNSIGNED NOT NULL DEFAULT 1,
+    `unit_price` DECIMAL(20, 6) NOT NULL,
+    `supplier_reference` VARCHAR(100) DEFAULT NULL,
+    `status` VARCHAR(20) NOT NULL DEFAULT \'pending\',
+    `id_product` INT(11) UNSIGNED DEFAULT NULL,
+    `id_product_attribute` INT(11) UNSIGNED DEFAULT NULL,
+    `sku` VARCHAR(100) DEFAULT NULL,
+    `sale_price` DECIMAL(20, 6) DEFAULT NULL,
+    `margin` DECIMAL(20, 6) DEFAULT NULL,
+    `cancellation_reason` TEXT,
+    `notes` TEXT,
+    `date_add` DATETIME NOT NULL,
+    `date_upd` DATETIME NOT NULL,
+    PRIMARY KEY (`id_lot_product`),
+    KEY `id_lot` (`id_lot`),
+    KEY `imei` (`imei`),
+    KEY `serial_number` (`serial_number`)
+) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8mb4;';
 
 
         $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'lot_manager_suppliers` (
