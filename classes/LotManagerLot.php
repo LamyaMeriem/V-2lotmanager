@@ -148,7 +148,7 @@ class LotManagerLot extends ObjectModel
     public function addAuditLog($action, $details = null, $id_employee = null)
     {
         if (!class_exists('LotManagerAudit')) {
-            require_once _PS_MODULE_DIR_ . 'lot_manager/classes/LotManagerAudit.php';
+            require_once _PS_MODULE_DIR_ . 'lotmanager/classes/LotManagerAudit.php';
         }
 
         if (!$id_employee && Context::getContext()->employee) {
